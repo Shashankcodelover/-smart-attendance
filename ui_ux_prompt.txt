@@ -1,0 +1,79 @@
+# Master UI/UX Generation Prompt: Smart Offline Attendance System (Light Theme Edition)
+
+*(Resilient, QR-OTP Cryptographic Matching with LocalStorage Buffer Synchronization)*
+
+Feed this highly detailed, professional, and visually stunning prompt into your AI design suite (e.g., Project IDX, Google AI Studio, v0.dev, or Bolt.new) to generate a complete, premium, responsive layout.
+
+---
+
+## Generator Prompt Specification
+
+Build a premium, responsive, and visually delightful web interface for a "Smart Offline Attendance System" utilizing a premium, modern Light Theme. The interface must include a dynamic initial Splash Screen Gateway that splits into three distinct role-based sub-systems (Admin, Lecturer, and Student).
+
+### 1. AESTHETICS & EMOTIONAL SYSTEM THEME
+- **Visual Feel:** "Light Acrylic Air." The UI should feel clean, warm, lightweight, and incredibly tactile. Sublte shadow drops and soft pastels create a serene, zero-anxiety academic atmosphere.
+- **Color Palette (Light Glassmorphic):**
+  * Canvas Base Background: Soft Creamy Alabaster (#f8fafc)
+  * Panel Backgrounds: Translucent Milky Glass (rgba(255, 255, 255, 0.75))
+  * Borders: 1px thin outlines with pastel linear gradients (linear-gradient(135deg, rgba(14, 165, 233, 0.2), rgba(139, 92, 246, 0.15)))
+  * Primary Accent: Warm Lavender (#8b5cf6)
+  * Secondary Accent: Sky Teal (#06b6d4)
+  * Active Highlights: Sunset Coral (#f43f5e)
+  * Success Glows: Mint Green (#10b981)
+  * Warning Glows: Warm Butterscotch (#f59e0b)
+- **Filters & Shadows:** `backdrop-filter: blur(16px)`, box-shadow: `0 8px 32px rgba(148, 163, 184, 0.08)`.
+- **Typography:** Outfit (playful, modern title fonts) and Inter (highly legible data typography).
+
+---
+
+### 2. DYNAMIC INITIAL SPLASH SCREEN (THE ROLE GATEWAY)
+- **Desktop & Mobile Layout:** Centered single-column layout on a soft lavender-cream radial background gradient.
+- **Title Block:** "SJCE Smart Attendance" in bold warm lavender text, with a dynamic floating QR-OTP graphic icon.
+- **The Role Selection Grid:** A horizontal row of three large, high-fidelity frosted cards (spanning 4 columns each on desktop; stacking vertically as full-width blocks on mobile). Each card has:
+  * **Card 1: "Student Entry"**
+    * Accent: Mint Green border highlight.
+    * Text: "Fast check-in via QR-OTP, view personal attendance logs, and track performance."
+    * Action Button: "Access Client Portal" - Mint Green background, white text, padding: 12px 20px, hover: scale(1.03) with soft green glow.
+  * **Card 2: "Lecturer Dashboard"**
+    * Accent: Sky Teal border highlight.
+    * Text: "Generate ephemeral sessions, project active OTPs, monitor websocket entries, and adjust records."
+    * Action Button: "Access Lecture Deck" - Sky Teal background, white text, padding: 12px 20px, hover: scale(1.03) with soft teal glow.
+  * **Card 3: "Admin Command"**
+    * Accent: Warm Lavender border highlight.
+    * Text: "Manage student database lists, check database permissions, monitor backup logs, and run reports."
+    * Action Button: "Access Command Center" - Warm Lavender background, white text, padding: 12px 20px, hover: scale(1.03) with soft lavender glow.
+
+---
+
+### 3. ROLE-BASED UI/UX BOARDS (POST-LOGIN PATHS)
+
+#### A. THE ADMIN COMMAND CENTER (POST-LOGIN ROLE: ADMIN)
+- **Layout Grid:** 12-column grid. Left Navigation Sidebar: 3 columns. Center Data Hub: 9 columns. Inner padding: p-6 (24px). Gap: 20px.
+- **Controls & Widgets:**
+  - **Database Sync Monitor:** Frosted table displaying active better-sqlite3 database transactions, read/write speed indicators, and size allocation metrics.
+  - **Student Roster Upload:** Drag-and-drop file uploader area with dotted Lavender borders, and a massive primary button: "Ingest CSV File" (Lavender background, white text, padding: 12px 24px, hover: translate-y(-1px)).
+  - **System Backup Controls:** Two buttons side-by-side: "Backup Database" (transparent Lavender border) and "Restore System State" (Coral background).
+
+#### B. THE LECTURER CONTROL CANVASES (POST-LOGIN ROLE: LECTURER)
+- **Layout Grid:** 12-column grid. Sidebar Panel (Class Settings): 4 columns. Primary Projection Panel: 8 columns. Inner padding: p-8 (32px).
+- **Controls & Widgets:**
+  - **Active Session Setup:** Input field with placeholder "Subject Code", dropdown select "Select Semester", and primary action button "Generate Session QR" (Sky Teal gradient background, white text, padding: 14px 24px).
+  - **The Projection Stage:** Giant centered dynamic canvas containing:
+    1. **Dynamic QR Code:** 280px x 280px high-contrast QR box with rounded edges and a cycling progress loading circle border.
+    2. **Real-time OTP Code:** Massive 4-digit code (e.g., "7 8 2 1") in Sunset Coral text, 48px size, pulsing gently.
+    3. **Active Student Counter:** SVG circular ring showing the percentage of expected students who have completed check-in, updating dynamically via WebSockets.
+
+#### C. THE STUDENT CLIENT MODULE (POST-LOGIN ROLE: STUDENT)
+- **Layout Grid:** Stacked single-column mobile-first layout. Card size: 360px centered. Inner padding: p-5 (20px).
+- **Controls & Widgets:**
+  - **Identity Onboarding:** Input box "Enter USN" with a "Remember Me" toggle. Primary Lavender button: "Proceed to Camera".
+  - **The Scanner Overlay:** Camera feed container with neon green targeting lines, dynamic scan laser line, and red "Aborted Scan" button under it.
+  - **The OTP Grid:** 4 separate digit entry blocks. Once completed, highlights with a glowing Mint Green outline. Primary check button: "Verify Presence" (Mint Green gradient background).
+  - **The Offline Buffering Badge:** Floating indicator in the upper-right corner that transitions dynamically from "Online Connection" (Mint Green) to "Offline Cache Active" (Butterscotch Orange) if cellular connectivity drops.
+  - **The Success Receipt Card:** Rendered upon validation. Displays a confetti blast animation (Mint/Teal/Lavender particles), date/time stamps, and receipt hash.
+
+---
+
+### 4. FUTURE EXPANSIONS & STRATEGIES
+- **Tactile Sound Engine:** The AI generation should plan for micro-audio cues (soft bubble sound on camera activation, energetic pop sound on successful validation).
+- **Dynamic P2P Relay Control:** Future placeholder panel on the Student screen: "Mesh Sync Hub" - allowing students in disconnected lecture rooms to establish WebRTC channels to relay encrypted attendance tokens.

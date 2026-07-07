@@ -1,0 +1,8 @@
+{
+  "name": "SJCE Smart Attendance",
+  "description": "Smart Offline Web-Based Attendance System with QR-OTP, offline local buffer reconciliation, and Gemini-powered Stitch AI Assistant.",
+  "requestFramePermissions": [
+    "camera"
+  ],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

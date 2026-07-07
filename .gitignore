@@ -1,0 +1,10 @@
+node_modules/
+.env
+dist/
+build/
+.DS_Store
+*.log
+sqlite.db
+db.sqlite
+attendance-Backend/sqlite.db
+attendance-Backend/db.sqlite

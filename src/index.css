@@ -1,0 +1,172 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", system-ui, sans-serif;
+  --font-display: "Outfit", sans-serif;
+}
+
+/* Custom CSS Helpers */
+.acrylic-card {
+  background: rgba(255, 255, 255, 0.75);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(132, 85, 239, 0.1);
+  box-shadow: 0 8px 32px rgba(148, 163, 184, 0.08);
+}
+
+.gradient-button {
+  background: linear-gradient(135deg, #6b38d4 0%, #00687a 100%);
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.gradient-button:active {
+  transform: scale(0.98);
+}
+
+.offline-chip {
+  background: rgba(220, 44, 79, 0.1);
+  color: #b90538;
+  border: 1px solid rgba(185, 5, 56, 0.2);
+}
+
+.chat-glow {
+  box-shadow: 0 0 20px rgba(132, 85, 239, 0.15);
+}
+
+.progress-ring__circle {
+  transition: stroke-dashoffset 0.35s;
+  transform: rotate(-90deg);
+  transform-origin: 50% 50%;
+}
+
+.pulse-soft {
+  animation: pulse-border 2s infinite ease-in-out;
+}
+
+@keyframes pulse-border {
+  0% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.02); opacity: 0.8; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.shimmer {
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+  background-size: 200% 100%;
+  animation: shimmer 2s infinite;
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+/* Loading bar animation (used in splash screen) */
+@keyframes loading-bar {
+  0% { left: -40%; width: 40%; }
+  50% { left: 60%; width: 40%; }
+  100% { left: 110%; width: 40%; }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.5s ease-out forwards;
+}
+
+/* iOS-safe-area bottom padding */
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom, 12px);
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #cbc3d7;
+  border-radius: 10px;
+}
+
+.selection-glow:checked + label {
+  background: linear-gradient(135deg, #6b38d4 0%, #8455ef 100%);
+  color: #ffffff;
+  border-color: transparent;
+  box-shadow: 0 4px 12px rgba(107, 56, 212, 0.2);
+}
+
+body {
+  background-color: #f7f9fb;
+  background-image: 
+    radial-gradient(at 0% 0%, rgba(107, 56, 212, 0.03) 0px, transparent 50%),
+    radial-gradient(at 100% 100%, rgba(87, 223, 254, 0.05) 0px, transparent 50%);
+  min-height: 100vh;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Ensure modals display properly over mobile keyboards */
+.modal-fixed {
+  position: fixed;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Touch-friendly tap targets */
+@media (max-width: 768px) {
+  button, a {
+    min-height: 40px;
+  }
+}
+
+/* Modal and Animation Helpers */
+.modal-backdrop {
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  animation: fadeIn 0.3s ease-out forwards;
+}
+
+.modal-content {
+  animation: zoomIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes zoomIn {
+  from { transform: scale(0.95); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+.pulse-glowing {
+  box-shadow: 0 0 0 0 rgba(107, 56, 212, 0.4);
+  animation: pulse-glow 2s infinite;
+}
+
+@keyframes pulse-glow {
+  0% {
+    box-shadow: 0 0 0 0 rgba(107, 56, 212, 0.5);
+  }
+  70% {
+    box-shadow: 0 0 0 15px rgba(107, 56, 212, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(107, 56, 212, 0);
+  }
+}
+
+.scanner-laser {
+  animation: laser-sweep 2s infinite ease-in-out;
+}
+
+@keyframes laser-sweep {
+  0%, 100% { top: 0%; }
+  50% { top: 100%; }
+}
+
