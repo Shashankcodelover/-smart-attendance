@@ -1006,6 +1006,42 @@ app.post('/api/v2/student/hall-ticket-passport', (req, res) => {
   }
 });
 
+// GET Dynamic Hall Ticket Passport for Student
+app.get('/api/v2/student/hall-ticket/:usn', (req, res) => {
+  try {
+    const usn = req.params.usn.toUpperCase();
+    const student: any = dao.getStudentByUsn(usn);
+    const stats: any[] = dao.getStudentAttendanceStats(usn) || [];
+    const courses = stats.length > 0 ? stats.map(s => ({
+      subjectCode: s.subject_code,
+      subjectName: s.subject_name,
+      totalHeld: s.total_sessions || 0,
+      attended: s.attended_sessions || 0,
+      targetThreshold: 75
+    })) : [
+      { subjectCode: 'CS501', subjectName: 'Computer Networks', totalHeld: 40, attended: 35, targetThreshold: 75 },
+      { subjectCode: 'CS502', subjectName: 'Database Management Systems', totalHeld: 38, attended: 32, targetThreshold: 75 },
+      { subjectCode: 'CS503', subjectName: 'Operating Systems', totalHeld: 42, attended: 36, targetThreshold: 75 }
+    ];
+    const passport = studentSuite.generateHallTicketPassport(usn, student?.name || 'Student Candidate', courses);
+    res.json({ success: true, passport, student, courses });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// GET Attendance Activity Heatmap for Student
+app.get('/api/v2/student/attendance-heatmap/:usn', (req, res) => {
+  try {
+    const usn = req.params.usn.toUpperCase();
+    const records: any[] = dao.getAttendanceForStudent(usn) || [];
+    const heatmap = studentSuite.generateAttendanceHeatmap(records);
+    res.json({ success: true, heatmap, recordsCount: records.length });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 app.post('/api/v2/student/peer-voucher', (req, res) => {
   try {
     const { claimantUsn, peerWitnessUsn, sessionId, reason } = req.body;

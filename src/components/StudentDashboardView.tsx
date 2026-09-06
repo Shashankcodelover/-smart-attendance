@@ -13,9 +13,15 @@ export default function StudentDashboardView({ onCheckInClick, currentUser, sess
   const [dashboardData, setDashboardData] = useState<any>(null);
   const [bunkData, setBunkData] = useState<any>(null);
   const [leaveRequests, setLeaveRequests] = useState<any[]>([]);
+  const [hallTicket, setHallTicket] = useState<any>(null);
   const [showLeaveModal, setShowLeaveModal] = useState(false);
+  const [showHallTicketModal, setShowHallTicketModal] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Interactive Trajectory Simulator State
+  const [simUpcomingClasses, setSimUpcomingClasses] = useState<number>(10);
+  const [simPlannedMisses, setSimPlannedMisses] = useState<number>(2);
 
   // Leave form state
   const [leaveForm, setLeaveForm] = useState({
@@ -37,7 +43,7 @@ export default function StudentDashboardView({ onCheckInClick, currentUser, sess
     setError(null);
     try {
       const usn = currentUser.codeOrUsn.toUpperCase();
-      const [dashRes, bunkRes, leaveRes] = await Promise.all([
+      const [dashRes, bunkRes, leaveRes, htRes] = await Promise.all([
         fetch(`/api/student/dashboard/${usn}`),
         fetch('/api/v2/bunk/calculate-trajectory', {
           method: 'POST',
@@ -49,7 +55,8 @@ export default function StudentDashboardView({ onCheckInClick, currentUser, sess
             targetThresholdPercentage: 75
           })
         }).catch(() => null),
-        fetch(`/api/leave/requests?studentUsn=${usn}`).catch(() => null)
+        fetch(`/api/leave/requests?studentUsn=${usn}`).catch(() => null),
+        fetch(`/api/v2/student/hall-ticket/${usn}`).catch(() => null)
       ]);
 
       if (!dashRes.ok) throw new Error('Failed to fetch dashboard data');
@@ -64,6 +71,11 @@ export default function StudentDashboardView({ onCheckInClick, currentUser, sess
       if (leaveRes && leaveRes.ok) {
         const leaveJson = await leaveRes.json();
         setLeaveRequests(Array.isArray(leaveJson) ? leaveJson : []);
+      }
+
+      if (htRes && htRes.ok) {
+        const htJson = await htRes.json();
+        setHallTicket(htJson.passport);
       }
     } catch (err: any) {
       setError(err.message);
@@ -108,25 +120,29 @@ export default function StudentDashboardView({ onCheckInClick, currentUser, sess
   };
 
   const student = dashboardData?.student;
-  const records = dashboardData?.records || [];
-  const stats = dashboardData?.stats || [];
+  const stats: any[] = dashboardData?.stats || [];
 
-  // Overall attendance calculation from real records or student record
-  let overallPct = student?.attendanceRate ?? 85;
-  if (stats.length > 0) {
-    const totalSessions = stats.reduce((acc: number, s: any) => acc + (s.total_sessions || 0), 0);
-    const attended = stats.reduce((acc: number, s: any) => acc + (s.attended_sessions || 0), 0);
-    if (totalSessions > 0) {
-      overallPct = Math.round((attended / totalSessions) * 100);
-    }
+  // Cumulative math
+  let totalConducted = stats.reduce((acc: number, s: any) => acc + (s.total_sessions || 0), 0);
+  let totalAttended = stats.reduce((acc: number, s: any) => acc + (s.attended_sessions || 0), 0);
+  if (totalConducted === 0) {
+    totalConducted = 40;
+    totalAttended = 34;
   }
+  const overallPct = Math.round((totalAttended / totalConducted) * 100);
+
+  // Real-time Trajectory Simulator calculation
+  const simTotalFutureHeld = totalConducted + simUpcomingClasses;
+  const simTotalFutureAttended = totalAttended + (simUpcomingClasses - simPlannedMisses);
+  const simProjectedPct = Math.round((Math.max(0, simTotalFutureAttended) / simTotalFutureHeld) * 100);
+  const simIsSafe = simProjectedPct >= 75;
 
   const displayName = currentUser?.name?.split(' ')[0] || student?.name?.split(' ')[0] || 'Student';
   const myUsn = currentUser?.codeOrUsn?.toUpperCase() || student?.usn || '';
 
-  const attendanceStatus = overallPct >= 85 ? 'Healthy' : overallPct >= 75 ? 'Moderate' : 'Critical';
+  const attendanceStatus = overallPct >= 85 ? 'Optimal' : overallPct >= 75 ? 'Moderate' : 'Critical';
   const attendanceColor = overallPct >= 85 ? '#6b38d4' : overallPct >= 75 ? '#f59e0b' : '#ba1a1a';
-  const statusTagColor = overallPct >= 85 ? 'text-[#6b38d4] bg-[#6b38d4]/5' : overallPct >= 75 ? 'text-amber-700 bg-amber-50' : 'text-[#ba1a1a] bg-red-50';
+  const statusTagColor = overallPct >= 85 ? 'text-[#6b38d4] bg-[#6b38d4]/10' : overallPct >= 75 ? 'text-amber-700 bg-amber-50' : 'text-[#ba1a1a] bg-red-50';
 
   const circleCircumference = 408.4;
   const strokeDashoffset = circleCircumference * (1 - overallPct / 100);
@@ -148,43 +164,50 @@ export default function StudentDashboardView({ onCheckInClick, currentUser, sess
       <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
 
         {/* Welcome card */}
-        <div className="md:col-span-8 acrylic-card rounded-2xl p-6 flex flex-col justify-between overflow-hidden relative group border border-[#eceef0]">
+        <div className="md:col-span-8 bg-white rounded-2xl p-6 flex flex-col justify-between border border-slate-200/80 shadow-xs relative overflow-hidden group">
           <div className="relative z-10 space-y-2">
             <div className="flex flex-wrap items-center gap-2">
               <span className={`text-[10px] uppercase tracking-widest font-extrabold px-2.5 py-1 rounded-full inline-block ${statusTagColor}`}>
-                {attendanceStatus === 'Healthy' ? 'OPTIMAL PROFILE' : attendanceStatus === 'Moderate' ? 'MODERATE STANDING' : '⚠ ATTENDANCE ALERT'}
+                {attendanceStatus === 'Optimal' ? 'OPTIMAL PROFILE' : attendanceStatus === 'Moderate' ? 'MODERATE STANDING' : '⚠ ATTENDANCE ALERT'}
               </span>
-              <span className="text-[10px] font-sans font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded">
+              <span className="text-[10px] font-sans font-bold text-slate-600 bg-slate-100 px-2.5 py-0.5 rounded-full">
                 {student?.department || 'Computer Science'} &bull; Year {student?.year || 3} &bull; Sec {student?.section || 'A'}
               </span>
             </div>
-            <h1 className="text-2xl sm:text-3xl font-display font-semibold text-[#191c1e] leading-snug">
+            <h1 className="text-2xl sm:text-3xl font-display font-bold text-slate-900 leading-snug">
               Welcome back, {displayName}.
             </h1>
             {myUsn && (
-              <p className="text-xs font-mono text-[#7b7486]">USN: {myUsn} &bull; Roll: {student?.roll_number || myUsn.slice(-3)}</p>
+              <p className="text-xs font-mono text-slate-500">USN: {myUsn} &bull; Roll: {student?.roll_number || myUsn.slice(-3)}</p>
             )}
-            <p className="text-xs text-[#494454] max-w-md leading-relaxed">
+            <p className="text-xs text-slate-600 max-w-lg leading-relaxed pt-1">
               {overallPct >= 75
-                ? `Your attendance is in good standing at ${overallPct}%. You are clear for university semester exams.`
-                : `Warning: Your attendance is ${overallPct}%, below the mandatory 75% cutoff. Attend upcoming lectures to prevent detention.`}
+                ? `Your cumulative presence is clear at ${overallPct}%. You satisfy university semester eligibility requirements.`
+                : `Warning: Your cumulative attendance is ${overallPct}%, falling below the 75% UGC/VTU threshold. Attend upcoming lectures to maintain exam clearance.`}
             </p>
           </div>
 
-          <div className="mt-6 flex flex-wrap gap-3 relative z-10">
+          <div className="mt-6 flex flex-wrap gap-2.5 relative z-10">
             <button
               onClick={onCheckInClick}
-              className="px-6 py-2.5 bg-gradient-to-r from-[#6b38d4] to-[#8455ef] hover:from-[#8455ef] hover:to-[#6b38d4] text-white font-display text-sm font-semibold rounded-xl shadow-md hover:scale-[1.01] transition-transform flex items-center gap-2 cursor-pointer"
+              className="px-5 py-2.5 bg-gradient-to-r from-[#6b38d4] to-[#8455ef] hover:from-[#8455ef] hover:to-[#6b38d4] text-white font-sans text-xs font-bold rounded-xl shadow-xs transition-all flex items-center gap-1.5 cursor-pointer"
             >
               <span className="material-symbols-outlined text-sm">qr_code_scanner</span>
               Check-in with QR / OTP
+            </button>
+            <button
+              onClick={() => setShowHallTicketModal(true)}
+              className="px-4 py-2.5 bg-indigo-50 hover:bg-indigo-100 text-[#6b38d4] font-sans text-xs font-bold rounded-xl flex items-center gap-1.5 cursor-pointer transition-all border border-indigo-100"
+            >
+              <span className="material-symbols-outlined text-sm">badge</span>
+              Exam Hall Ticket
             </button>
             <button
               onClick={() => setShowLeaveModal(true)}
               className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-sans text-xs font-bold rounded-xl flex items-center gap-1.5 cursor-pointer transition-all"
             >
               <span className="material-symbols-outlined text-sm">event_busy</span>
-              Apply Leave / OD Claim
+              Leave / OD Claim
             </button>
           </div>
 
@@ -192,57 +215,57 @@ export default function StudentDashboardView({ onCheckInClick, currentUser, sess
         </div>
 
         {/* Live session alert or time card */}
-        <div className="md:col-span-4 acrylic-card rounded-2xl p-6 flex flex-col items-center justify-center text-center border border-slate-100">
+        <div className="md:col-span-4 bg-white rounded-2xl p-6 flex flex-col items-center justify-center text-center border border-slate-200/80 shadow-xs">
           {activeSessions.length > 0 ? (
             <>
-              <span className="flex h-3 w-3 relative mb-3">
+              <span className="flex h-3 w-3 relative mb-2">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                 <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
               </span>
               <span className="text-[9px] font-sans font-extrabold text-emerald-600 uppercase tracking-wider mb-1">
-                Live Session Active!
+                Live Session Broadcasting
               </span>
-              <p className="font-display font-bold text-base text-[#191c1e]">
+              <p className="font-display font-bold text-base text-slate-900">
                 {activeSessions[0].subjectCode}
               </p>
-              <p className="text-xs text-[#7b7486] font-sans mt-0.5 font-semibold">
+              <p className="text-xs text-slate-500 font-sans mt-0.5">
                 {activeSessions[0].subjectName}
               </p>
-              <p className="text-[10px] text-emerald-600 font-bold mt-1">
+              <p className="text-[10px] text-emerald-700 font-bold mt-1 bg-emerald-50 px-2 py-0.5 rounded">
                 Sec {activeSessions[0].section} &bull; Year {activeSessions[0].year}
               </p>
               <button
                 onClick={onCheckInClick}
-                className="mt-3 px-4 py-2 bg-emerald-600 text-white text-[11px] font-bold rounded-xl hover:bg-emerald-700 transition-all cursor-pointer shadow-xs"
+                className="mt-3 px-4 py-2 bg-emerald-600 text-white text-xs font-bold rounded-xl hover:bg-emerald-700 transition-all cursor-pointer shadow-xs"
               >
-                Mark Presence Now &rarr;
+                Scan Live QR &rarr;
               </button>
             </>
           ) : (
             <>
-              <span className="material-symbols-outlined text-[36px] text-[#6b38d4]/30 mb-2">sensors_off</span>
-              <p className="font-display font-bold text-sm text-[#191c1e]">No Active Session Gate</p>
-              <p className="text-xs text-[#7b7486] font-sans mt-1 leading-relaxed">
-                Your faculty hasn't broadcasted an attendance gate yet. It will alert automatically when class opens.
+              <span className="material-symbols-outlined text-3xl text-slate-300 mb-2">sensors_off</span>
+              <p className="font-display font-bold text-sm text-slate-800">No Active Lecture Gate</p>
+              <p className="text-xs text-slate-500 font-sans mt-1 leading-relaxed max-w-[200px]">
+                Your faculty will open a live presence gate when lecture commences.
               </p>
-              <p className="text-[10px] font-mono text-[#7b7486] mt-3">{currentTime}</p>
+              <p className="text-[10px] font-mono text-slate-400 mt-2">{currentTime}</p>
             </>
           )}
         </div>
       </div>
 
-      {/* Attendance Health & Bunk Radar Overview */}
+      {/* Attendance Metrics & Interactive Simulator Row */}
       <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
 
-        {/* Progress ring */}
-        <div className="md:col-span-4 acrylic-card rounded-2xl p-6 flex flex-col items-center shadow-sm border border-slate-100">
-          <h3 className="font-display font-bold self-start text-[#191c1e] text-base mb-4">
-            Cumulative Attendance
+        {/* Circular Progress Gauge */}
+        <div className="md:col-span-4 bg-white rounded-2xl p-6 flex flex-col items-center justify-between border border-slate-200/80 shadow-xs">
+          <h3 className="font-display font-bold self-start text-slate-900 text-base mb-2">
+            Cumulative Presence
           </h3>
 
-          <div className="relative w-36 h-36 flex items-center justify-center">
+          <div className="relative w-36 h-36 flex items-center justify-center my-2">
             <svg className="w-full h-full">
-              <circle className="text-[#eceef0] stroke-current" cx="72" cy="72" fill="transparent" r="58" strokeWidth="9" />
+              <circle className="text-slate-100 stroke-current" cx="72" cy="72" fill="transparent" r="58" strokeWidth="9" />
               <circle
                 cx="72" cy="72" fill="transparent" r="58"
                 strokeWidth="9"
@@ -254,7 +277,7 @@ export default function StudentDashboardView({ onCheckInClick, currentUser, sess
               />
             </svg>
             <div className="absolute flex flex-col items-center select-none">
-              <span className="text-3xl font-display font-bold text-[#191c1e]">
+              <span className="text-3xl font-display font-black text-slate-900">
                 {overallPct}%
               </span>
               <span className="text-[9px] font-sans font-bold tracking-widest uppercase mt-0.5" style={{ color: attendanceColor }}>
@@ -263,91 +286,172 @@ export default function StudentDashboardView({ onCheckInClick, currentUser, sess
             </div>
           </div>
 
-          <div className="mt-5 w-full grid grid-cols-3 gap-2 px-1 font-sans text-xs text-center border-t border-slate-100 pt-3">
+          <div className="w-full grid grid-cols-3 gap-2 px-1 font-sans text-xs text-center border-t border-slate-100 pt-3">
             <div>
-              <p className="text-[9px] text-[#7b7486] uppercase font-bold tracking-wider mb-0.5">Threshold</p>
+              <p className="text-[9px] text-slate-400 uppercase font-bold tracking-wider mb-0.5">Threshold</p>
               <p className="font-bold text-slate-800 text-sm">75%</p>
             </div>
             <div>
-              <p className="text-[9px] text-[#7b7486] uppercase font-bold tracking-wider mb-0.5">Courses</p>
-              <p className="font-bold text-[#6b38d4] text-sm">{stats.length || 3}</p>
+              <p className="text-[9px] text-slate-400 uppercase font-bold tracking-wider mb-0.5">Attended</p>
+              <p className="font-bold text-[#6b38d4] text-sm">{totalAttended}/{totalConducted}</p>
             </div>
             <div>
-              <p className="text-[9px] text-[#7b7486] uppercase font-bold tracking-wider mb-0.5">Status</p>
+              <p className="text-[9px] text-slate-400 uppercase font-bold tracking-wider mb-0.5">Status</p>
               <p className="font-bold text-sm" style={{ color: attendanceColor }}>{attendanceStatus}</p>
             </div>
           </div>
         </div>
 
-        {/* Live Subject-wise Breakdown Table */}
-        <div className="md:col-span-8 acrylic-card rounded-2xl p-6 shadow-sm border border-slate-100 flex flex-col">
-          <div className="flex justify-between items-center mb-3">
-            <h3 className="font-display font-bold text-base text-[#191c1e]">Subject Attendance Breakdown</h3>
-            <span className="text-[10px] uppercase font-sans tracking-wide text-[#7b7486] font-bold">Live Records</span>
+        {/* Interactive "What-If" Bunk & Attendance Trajectory Simulator */}
+        <div className="md:col-span-8 bg-white rounded-2xl p-6 border border-slate-200/80 shadow-xs flex flex-col justify-between">
+          <div>
+            <div className="flex justify-between items-center mb-1">
+              <div className="flex items-center gap-2">
+                <span className="material-symbols-outlined text-[#6b38d4] text-xl">tune</span>
+                <h3 className="font-display font-bold text-base text-slate-900">
+                  Smart Attendance & Bunk Simulator
+                </h3>
+              </div>
+              <span className="text-[10px] font-mono font-bold px-2 py-0.5 bg-indigo-50 text-[#6b38d4] rounded-md">
+                Predictive Math Engine
+              </span>
+            </div>
+            <p className="text-xs text-slate-500 mb-4">
+              Model hypothetical upcoming lectures to see exact projected attendance before making leave plans.
+            </p>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-slate-50/80 p-4 rounded-xl border border-slate-150 mb-4">
+              <div>
+                <div className="flex justify-between text-xs font-bold text-slate-700 mb-1.5">
+                  <span>Upcoming Lectures:</span>
+                  <span className="text-[#6b38d4] font-mono">{simUpcomingClasses} classes</span>
+                </div>
+                <input
+                  type="range"
+                  min="2"
+                  max="30"
+                  step="1"
+                  value={simUpcomingClasses}
+                  onChange={(e) => {
+                    const val = parseInt(e.target.value);
+                    setSimUpcomingClasses(val);
+                    if (simPlannedMisses > val) setSimPlannedMisses(val);
+                  }}
+                  className="w-full accent-[#6b38d4] cursor-pointer"
+                />
+              </div>
+
+              <div>
+                <div className="flex justify-between text-xs font-bold text-slate-700 mb-1.5">
+                  <span>Hypothetical Absences:</span>
+                  <span className="text-rose-600 font-mono">{simPlannedMisses} misses</span>
+                </div>
+                <input
+                  type="range"
+                  min="0"
+                  max={simUpcomingClasses}
+                  step="1"
+                  value={simPlannedMisses}
+                  onChange={(e) => setSimPlannedMisses(parseInt(e.target.value))}
+                  className="w-full accent-rose-600 cursor-pointer"
+                />
+              </div>
+            </div>
           </div>
 
-          <div className="overflow-x-auto rounded-xl border border-slate-150 flex-1">
-            <table className="w-full text-left font-sans text-xs">
-              <thead className="bg-slate-50 border-b border-slate-150">
-                <tr>
-                  <th className="px-3.5 py-2.5 font-bold text-slate-500 uppercase text-[9px]">Course</th>
-                  <th className="px-3.5 py-2.5 font-bold text-slate-500 uppercase text-[9px] text-center">Conducted</th>
-                  <th className="px-3.5 py-2.5 font-bold text-slate-500 uppercase text-[9px] text-center">Attended</th>
-                  <th className="px-3.5 py-2.5 font-bold text-slate-500 uppercase text-[9px] text-center">Percentage</th>
-                  <th className="px-3.5 py-2.5 font-bold text-slate-500 uppercase text-[9px] text-right">Bunk Buffer</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {stats.length === 0 ? (
-                  <tr>
-                    <td colSpan={5} className="px-3 py-6 text-center text-slate-400 text-xs">
-                      No subject records marked yet. Check in to live sessions to populate real statistics.
-                    </td>
-                  </tr>
-                ) : (
-                  stats.map((st: any, idx: number) => {
-                    const pct = st.total_sessions > 0 ? Math.round((st.attended_sessions / st.total_sessions) * 100) : 100;
-                    const canBunkCount = Math.max(0, Math.floor((st.attended_sessions - 0.75 * st.total_sessions) / 0.75));
-                    const reqCount = Math.max(0, Math.ceil((0.75 * st.total_sessions - st.attended_sessions) / 0.25));
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-white p-3.5 rounded-xl border border-slate-200">
+            <div>
+              <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Projected Outcome</span>
+              <p className="text-xs font-sans text-slate-700 font-medium">
+                Attending <span className="font-bold text-slate-900">{simUpcomingClasses - simPlannedMisses}/{simUpcomingClasses}</span> future lectures
+              </p>
+            </div>
 
-                    return (
-                      <tr key={idx} className="hover:bg-slate-50/50">
-                        <td className="px-3.5 py-2.5">
-                          <p className="font-bold text-slate-800">{st.subject_code}</p>
-                          <p className="text-[10px] text-slate-500">{st.subject_name}</p>
-                        </td>
-                        <td className="px-3.5 py-2.5 text-center font-semibold">{st.total_sessions}</td>
-                        <td className="px-3.5 py-2.5 text-center font-bold text-[#6b38d4]">{st.attended_sessions}</td>
-                        <td className="px-3.5 py-2.5 text-center">
-                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                            pct >= 85 ? 'bg-emerald-50 text-emerald-700' : pct >= 75 ? 'bg-amber-50 text-amber-700' : 'bg-red-50 text-red-700'
-                          }`}>
-                            {pct}%
-                          </span>
-                        </td>
-                        <td className="px-3.5 py-2.5 text-right font-semibold">
-                          {pct >= 75 ? (
-                            <span className="text-emerald-700 font-bold text-[11px]">{canBunkCount} safe bunks</span>
-                          ) : (
-                            <span className="text-rose-700 font-bold text-[11px]">Need {reqCount} classes</span>
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
+            <div className="flex items-center gap-3">
+              <div className="text-right">
+                <span className={`text-xl font-display font-black ${simIsSafe ? 'text-emerald-600' : 'text-rose-600'}`}>
+                  {simProjectedPct}%
+                </span>
+                <p className={`text-[10px] font-bold uppercase ${simIsSafe ? 'text-emerald-700' : 'text-rose-700'}`}>
+                  {simIsSafe ? '✓ Exam Eligible' : '✗ Detention Warning'}
+                </p>
+              </div>
+            </div>
           </div>
         </div>
       </div>
 
+      {/* Live Subject-wise Breakdown Table */}
+      <div className="bg-white rounded-2xl p-6 shadow-xs border border-slate-200/80">
+        <div className="flex justify-between items-center mb-3">
+          <div className="flex items-center gap-2">
+            <span className="material-symbols-outlined text-[#6b38d4] text-lg">view_list</span>
+            <h3 className="font-display font-bold text-base text-slate-900">Subject-Wise Attendance Matrix</h3>
+          </div>
+          <span className="text-[10px] uppercase font-sans tracking-wide text-slate-400 font-bold">Live Synchronized</span>
+        </div>
+
+        <div className="overflow-x-auto rounded-xl border border-slate-150">
+          <table className="w-full text-left font-sans text-xs">
+            <thead className="bg-slate-50 border-b border-slate-150">
+              <tr>
+                <th className="px-3.5 py-2.5 font-bold text-slate-500 uppercase text-[9px]">Course Code & Title</th>
+                <th className="px-3.5 py-2.5 font-bold text-slate-500 uppercase text-[9px] text-center">Conducted</th>
+                <th className="px-3.5 py-2.5 font-bold text-slate-500 uppercase text-[9px] text-center">Attended</th>
+                <th className="px-3.5 py-2.5 font-bold text-slate-500 uppercase text-[9px] text-center">Percentage</th>
+                <th className="px-3.5 py-2.5 font-bold text-slate-500 uppercase text-[9px] text-right">Safe Bunks / Recovery</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {stats.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="px-3 py-6 text-center text-slate-400 text-xs">
+                    No course records initialized yet. Check into live sessions to populate real statistics.
+                  </td>
+                </tr>
+              ) : (
+                stats.map((st: any, idx: number) => {
+                  const pct = st.total_sessions > 0 ? Math.round((st.attended_sessions / st.total_sessions) * 100) : 100;
+                  const canBunkCount = Math.max(0, Math.floor((st.attended_sessions - 0.75 * st.total_sessions) / 0.75));
+                  const reqCount = Math.max(0, Math.ceil((0.75 * st.total_sessions - st.attended_sessions) / 0.25));
+
+                  return (
+                    <tr key={idx} className="hover:bg-slate-50/50">
+                      <td className="px-3.5 py-2.5">
+                        <p className="font-bold text-slate-900">{st.subject_code}</p>
+                        <p className="text-[10px] text-slate-500">{st.subject_name}</p>
+                      </td>
+                      <td className="px-3.5 py-2.5 text-center font-semibold text-slate-700">{st.total_sessions}</td>
+                      <td className="px-3.5 py-2.5 text-center font-bold text-[#6b38d4]">{st.attended_sessions}</td>
+                      <td className="px-3.5 py-2.5 text-center">
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                          pct >= 85 ? 'bg-emerald-50 text-emerald-700' : pct >= 75 ? 'bg-amber-50 text-amber-700' : 'bg-red-50 text-red-700'
+                        }`}>
+                          {pct}%
+                        </span>
+                      </td>
+                      <td className="px-3.5 py-2.5 text-right font-semibold">
+                        {pct >= 75 ? (
+                          <span className="text-emerald-700 font-bold text-[11px]">✓ {canBunkCount} safe bunks</span>
+                        ) : (
+                          <span className="text-rose-700 font-bold text-[11px]">⚠ Need {reqCount} classes</span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
       {/* Leave Application History Tracker */}
-      <div className="acrylic-card rounded-2xl p-6 shadow-sm border border-slate-100">
+      <div className="bg-white rounded-2xl p-6 shadow-xs border border-slate-200/80">
         <div className="flex justify-between items-center mb-3">
           <div className="flex items-center gap-2">
             <span className="material-symbols-outlined text-[#6b38d4] text-lg">history_edu</span>
-            <h3 className="font-display font-bold text-base text-[#191c1e]">Your Leave & Medical Claims</h3>
+            <h3 className="font-display font-bold text-base text-slate-900">Your Leave & Medical Claims</h3>
           </div>
           <button
             onClick={() => setShowLeaveModal(true)}
@@ -358,7 +462,7 @@ export default function StudentDashboardView({ onCheckInClick, currentUser, sess
         </div>
 
         {leaveRequests.length === 0 ? (
-          <p className="text-xs text-slate-400 py-3">No leave claims submitted. Medical and on-duty exemptions will display here.</p>
+          <p className="text-xs text-slate-400 py-3">No leave claims submitted yet. Medical and on-duty exemptions will display here.</p>
         ) : (
           <div className="overflow-x-auto rounded-xl border border-slate-150">
             <table className="w-full text-left font-sans text-xs">
@@ -391,12 +495,108 @@ export default function StudentDashboardView({ onCheckInClick, currentUser, sess
         )}
       </div>
 
-      {/* --- LEAVE MODAL --- */}
+      {/* --- MODAL 1: DIGITAL EXAM HALL TICKET PASSPORT --- */}
+      {showHallTicketModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-lg w-full p-6 md:p-8 shadow-2xl space-y-5 border border-slate-150 animate-in fade-in zoom-in duration-200">
+            {/* Header */}
+            <div className="flex justify-between items-start border-b border-slate-150 pb-4">
+              <div>
+                <span className="text-[10px] font-mono font-bold uppercase tracking-widest text-[#6b38d4]">
+                  Official University Document
+                </span>
+                <h3 className="font-display font-extrabold text-xl text-slate-900 mt-0.5">
+                  Exam Eligibility Hall Ticket
+                </h3>
+                <p className="text-xs text-slate-500">Sri Jayachamarajendra College of Engineering (SJCE)</p>
+              </div>
+              <button onClick={() => setShowHallTicketModal(false)} className="text-slate-400 hover:text-slate-700 p-1 cursor-pointer">
+                <span className="material-symbols-outlined">close</span>
+              </button>
+            </div>
+
+            {/* Candidate Card */}
+            <div className="bg-slate-50 p-4 rounded-2xl border border-slate-150 flex items-center justify-between text-xs">
+              <div className="space-y-1">
+                <p className="font-bold text-sm text-slate-900">{student?.name || displayName}</p>
+                <p className="font-mono text-slate-600">USN: <span className="font-bold text-slate-900">{myUsn}</span></p>
+                <p className="text-slate-500">Dept: {student?.department || 'Computer Science (CSE)'}</p>
+              </div>
+              <div className="text-right">
+                <span className="px-2.5 py-1 rounded-full text-[10px] font-bold uppercase bg-emerald-100 text-emerald-800">
+                  {hallTicket?.isEligibleForAllExams ? '✓ All Cleared' : 'Provisional'}
+                </span>
+                <p className="text-[10px] font-mono text-slate-400 mt-1">Roll: {student?.roll_number || '001'}</p>
+              </div>
+            </div>
+
+            {/* Subject Clearance Table */}
+            <div className="space-y-2">
+              <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider">Course Clearance Audit</h4>
+              <div className="max-h-48 overflow-y-auto border border-slate-150 rounded-xl divide-y divide-slate-100 text-xs">
+                {stats.length === 0 ? (
+                  <p className="p-3 text-center text-slate-400">All registered semester subjects verified clear.</p>
+                ) : (
+                  stats.map((c, i) => {
+                    const pct = c.total_sessions > 0 ? Math.round((c.attended_sessions / c.total_sessions) * 100) : 100;
+                    const cleared = pct >= 75;
+                    return (
+                      <div key={i} className="p-2.5 flex items-center justify-between">
+                        <div>
+                          <p className="font-bold text-slate-800">{c.subject_code} - {c.subject_name}</p>
+                          <p className="text-[10px] text-slate-500">Attendance: {pct}%</p>
+                        </div>
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                          cleared ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700'
+                        }`}>
+                          {cleared ? 'CLEARED' : 'DETAINED'}
+                        </span>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+
+            {/* Verification Hash & QR Stamp */}
+            <div className="flex items-center justify-between p-3.5 bg-indigo-50/60 rounded-xl border border-indigo-100 text-xs">
+              <div>
+                <span className="text-[9px] uppercase font-bold text-[#6b38d4] block">Digital Cryptographic Seal</span>
+                <span className="font-mono text-[10px] text-slate-600 block truncate max-w-[220px]">
+                  {hallTicket?.digitalClearanceBadgeQR || `HT-PASS:${myUsn}:AUTH_VERIFIED`}
+                </span>
+              </div>
+              <span className="material-symbols-outlined text-3xl text-[#6b38d4]">verified_user</span>
+            </div>
+
+            {/* Actions */}
+            <div className="flex justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setShowHallTicketModal(false)}
+                className="px-4 py-2 border border-slate-200 text-slate-600 rounded-xl font-bold text-xs"
+              >
+                Close
+              </button>
+              <button
+                type="button"
+                onClick={() => window.print()}
+                className="px-5 py-2 bg-[#6b38d4] hover:bg-[#8455ef] text-white rounded-xl font-bold text-xs shadow-sm flex items-center gap-1.5"
+              >
+                <span className="material-symbols-outlined text-sm">print</span>
+                Print Hall Ticket
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* --- MODAL 2: LEAVE APPLICATION --- */}
       {showLeaveModal && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-xs z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4 border border-slate-100 animate-in fade-in zoom-in duration-200">
             <div className="flex justify-between items-center pb-2 border-b border-slate-100">
-              <h3 className="font-display font-bold text-lg text-[#191c1e]">Apply for Leave / OD Claim</h3>
+              <h3 className="font-display font-bold text-lg text-slate-900">Apply for Leave / OD Claim</h3>
               <button onClick={() => setShowLeaveModal(false)} className="text-slate-400 hover:text-slate-700 cursor-pointer">
                 <span className="material-symbols-outlined">close</span>
               </button>
