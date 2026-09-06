@@ -400,9 +400,11 @@ export default function StudentApp() {
         pendingOfflineCount={pendingOfflineRecords.length}
         onBackToGateway={() => {
           localStorage.removeItem('sjce_auth_session_student');
+          localStorage.removeItem('sjce_auth_token_student');
           setIsLoggedIn(false);
           window.location.href = '/';
         }}
+        currentUser={currentUser}
       />
 
       {/* Toast Notifications */}

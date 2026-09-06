@@ -105,7 +105,7 @@ test('Integration: /api/checkin Security Traps', async (t) => {
     assert.equal(res.status, 200, res.body.error);
     assert.equal(res.body.success, true);
     
-    const records = dao.getAttendanceRecords();
+    const records = dao.getAttendanceForSession('test_session_123');
     assert.equal(records.length, 1);
     assert.equal((records[0] as any).student_usn, '4JC21CS001');
   });
