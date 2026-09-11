@@ -65,8 +65,21 @@ export default function TopAppBar({
 
       {/* Right Controls & Profile Deck */}
       <div className="flex items-center gap-2 md:gap-3">
-        
-        {/* Offline Mode Status Indicator */}
+        {persona === 'student' && (
+          <button
+            type="button"
+            onClick={() => setCurrentPage(currentPage === 'biometric-presence' ? 'student-dashboard' : 'biometric-presence')}
+            className={`px-3 py-1.5 rounded-xl flex items-center gap-1.5 transition-all text-xs font-bold shadow-xs cursor-pointer ${
+              currentPage === 'biometric-presence'
+                ? 'bg-[#10b981] text-white shadow-emerald-200'
+                : 'bg-emerald-50 text-emerald-800 border border-emerald-300 hover:bg-emerald-100'
+            }`}
+            title="Open 3D Face Mesh & ZK Biometric Presence Protocol"
+          >
+            <span className="material-symbols-outlined text-sm">verified_user</span>
+            <span>{currentPage === 'biometric-presence' ? 'Dashboard' : 'Biometric ZK Pass'}</span>
+          </button>
+        )}
         <button
           type="button"
           onClick={() => setIsOffline(!isOffline)}

@@ -8,6 +8,7 @@ import TourGuide from './components/TourGuide';
 import UserProfileView from './components/UserProfileView';
 import AgentBotModal from './components/AgentBotModal';
 import OnboardingAuthModal from './components/OnboardingAuthModal';
+import { BiometricPresenceHUD } from './components/BiometricPresenceHUD';
 import { Session, AttendanceRecord, Student } from './types';
 
 const ENCRYPTION_PASSPHRASE = 'sjce_web_crypto_key_2026';
@@ -443,6 +444,16 @@ export default function StudentApp() {
               isOffline={isOffline}
               onAddPendingRecord={handleAddPendingOfflineRecord}
               onSuccessCheckIn={() => setCurrentPage('student-dashboard')}
+            />
+          )}
+
+          {currentPage === 'biometric-presence' && (
+            <BiometricPresenceHUD
+              studentUsn={currentUser?.codeOrUsn || '4JC21CS001'}
+              studentName={currentUser?.name || 'Preetham J.'}
+              onSuccess={() => {
+                setToast({ text: 'Soulbound Attendance Token (SBT) Minted on SQLite Ledger!', type: 'success' });
+              }}
             />
           )}
 

@@ -9,6 +9,7 @@ import bcrypt from 'bcrypt';
 import dotenv from 'dotenv';
 import { fileURLToPath } from 'url';
 import { handleAiChat } from './controllers/aiController';
+import { biometricZkEngine, CLASSROOM_REFERENCE } from './src/services/biometricZkPresenceEngine';
 
 dotenv.config();
 
@@ -1453,6 +1454,112 @@ app.delete('/api/students/:usn', (req, res) => {
     dao.deleteStudent(req.params.usn);
     dao.insertAuditLog('STUDENT_DELETED', req.params.usn, 'admin@sjce.edu', `Deleted student ${req.params.usn}`);
     res.json({ success: true, message: `Student ${req.params.usn} deleted.` });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ═════════════════════════════════════════════════════════════════
+// PROJECT ASTRA V5.0: BIOMETRIC LIVENESS & ZK PRESENCE PROTOCOL
+// ═════════════════════════════════════════════════════════════════
+
+/**
+ * GET /api/v5/biometric/session-beacon
+ * Returns reference classroom BLE, WiFi BSSID, and acoustic chirp parameters
+ */
+app.get('/api/v5/biometric/session-beacon', (req, res) => {
+  res.json({
+    success: true,
+    protocol: 'Project Astra Biometric ZK Geofence V5.0',
+    classroomReference: CLASSROOM_REFERENCE,
+    currentSessionId: 'SES-LIVE-SJCE-101',
+    activeChirpToken: `CHIRP_${Date.now().toString().slice(-6)}`
+  });
+});
+
+/**
+ * POST /api/v5/biometric/verify-liveness
+ * Evaluates 3D Face Mesh vectors, EAR blink rates, and anti-spoofing depth
+ */
+app.post('/api/v5/biometric/verify-liveness', (req, res) => {
+  try {
+    const vectors = req.body || {};
+    const evaluation = biometricZkEngine.evaluateLiveness(vectors);
+    res.json({
+      success: true,
+      evaluation
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/**
+ * POST /api/v5/biometric/zk-proof-checkin
+ * Validates ZK presence proof, mints Soulbound Token, logs attendance into SQLite
+ */
+app.post('/api/v5/biometric/zk-proof-checkin', (req, res) => {
+  try {
+    const { studentUsn, sessionId, faceVectors = {}, beaconTelemetry = {} } = req.body;
+
+    if (!studentUsn || !sessionId) {
+      return res.status(400).json({ error: 'studentUsn and sessionId required' });
+    }
+
+    const proof = biometricZkEngine.generateZkPresenceProof(
+      studentUsn.trim().toUpperCase(),
+      sessionId,
+      faceVectors,
+      beaconTelemetry
+    );
+
+    if (proof.verifiedPresence) {
+      // Record attendance in SQLite
+      try {
+        dao.recordAttendance(
+          sessionId,
+          studentUsn.trim().toUpperCase(),
+          'ZK_BIOMETRIC_PRESENCE',
+          'PRESENT',
+          beaconTelemetry.clientGps?.lat || 12.3142,
+          beaconTelemetry.clientGps?.lng || 76.6135,
+          proof.commitmentHash
+        );
+      } catch (dbErr) {
+        // Attendance might already be logged for this session
+      }
+
+      dao.insertAuditLog(
+        'ZK_BIOMETRIC_VERIFIED',
+        studentUsn.trim().toUpperCase(),
+        'biometric-zk@sjce.edu',
+        `Minted Soulbound Attendance Token ${proof.sbtTokenId} with Merkle Root ${proof.merkleRoot.substring(0, 18)}...`
+      );
+    }
+
+    res.json({
+      success: proof.verifiedPresence,
+      proof,
+      message: proof.verifiedPresence
+        ? 'Zero-Knowledge Biometric Presence Authenticated. SBT Minted.'
+        : 'Biometric Liveness or Physical Geofence Verification Failed.'
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/**
+ * GET /api/v5/biometric/ledger/:sessionId
+ * Returns the immutable cryptographic Merkle attendance ledger for the session
+ */
+app.get('/api/v5/biometric/ledger/:sessionId', (req, res) => {
+  try {
+    const ledger = biometricZkEngine.getSessionLedger(req.params.sessionId);
+    res.json({
+      success: true,
+      ledger
+    });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
